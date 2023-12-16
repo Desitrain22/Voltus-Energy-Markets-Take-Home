@@ -1,6 +1,25 @@
 import pandas as pd
 
-miso_baselines = {1: 10700, 2: 5400, 3: 850, 5: 9000, 6: 350}
+hourly_rates = {
+    pd.Timestamp("2022-06-14 14:00"): 1500,
+    pd.Timestamp("2022-06-14 15:00"): 1800,
+    pd.Timestamp("2022-06-14 16:00"): 3000,
+    pd.Timestamp("2022-06-14 17:00"): 780,
+}
+
+
+def construct_df():
+    # This is more easily done reading from a json or pre-made csv
+    miso_baselines = {1: 10700, 2: 5400, 3: 850, 5: 9000, 6: 350}
+    customer_profit_share = {1: 0.64, 2: 0.62, 3: 0.56, 5: 0.65, 6: 0.51}
+    df = pd.DataFrame([miso_baselines, customer_profit_share]).transpose()
+    df["10 of 10 baseline"] = ""
+    df["Average Performance (10 of 10)"] = ""
+    df["Average Performance (FSL)"] = ""
+    df["Revenue"] = ""
+    df["Customer Share"] = ""
+    df["Voltus Share"] = ""
+    return df.rename(columns={0: "MISO FSL Baseline", 1: "Profit Share%"})
 
 
 def get_site_data_as_series(
@@ -16,12 +35,16 @@ def get_site_data_as_series(
 def customer_performance_from_baseline(customer_series: pd.Series, baseline: float):
     return (
         customer_series.rolling(window=4)
-        .apply(sum) #takes a rolling sum of the prior 4 intervals
-        .dropna() #eliminates the leading 3 NA values
-        .iloc[::4] #filters every 4th entry, isolating the 45 minute mark (This could also be done with groupby by grouping on the :45)
-        .apply(lambda x: baseline - x) #subtract the baseline from the sum of each hour
+        .apply(sum)  # takes a rolling sum of the prior 4 intervals
+        .dropna()  # eliminates the leading 3 NA values
+        .iloc[
+            ::4
+        ]  # filters every 4th entry, isolating the 45 minute mark (This could also be done with groupby by grouping on the :45)
+        .apply(
+            lambda x: baseline - x
+        )  # subtract the baseline from the sum of each hour
         .mean()
-        .iloc[0] #return floating point value
+        .iloc[0]  # return floating point value
     )
 
 
@@ -47,18 +70,81 @@ def get_10of10_baseline(
     )  # filters for weekends, takes the average of the 10 days prior to the event date
 
 
-for i in [1, 2, 3, 5, 6]:
-    site_data = get_site_data_as_series("files/site_" + str(i) + ".csv")
-    fsl = customer_performance_from_baseline(
-        site_data.loc[
-            pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp("2022-06-14 18:00:00")
-        ],
-        get_10of10_baseline(data=site_data, event_date=pd.Timestamp("2022-06-14")),
+def calculate_payouts(
+    customer_series: pd.Series,
+    baseline: float,
+    customer_profit_share: float = 0.64,
+    hourly_payout_rates: dict = hourly_rates,
+):
+    hourly_performance = (
+        customer_series.rolling(window=4)
+        .apply(sum)
+        .dropna()
+        .iloc[::4]
+        .apply(lambda x: baseline - x)
     )
-    ten_of_ten = customer_performance_from_baseline(
-        site_data.loc[
-            pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp("2022-06-14 18:00:00")
-        ],
-        miso_baselines[i],
+    hourly_performance = hourly_performance.set_index(
+        hourly_performance.index.floor("h")
     )
-    print("Site " + str(i) + ":\nFSL: ", fsl, "\n10of10: ", ten_of_ten)
+    hourly_performance["Revenue"] = (
+        hourly_performance["kWh"] / 1000 * pd.Series(hourly_payout_rates)
+    ).apply(
+        lambda x: max(x, 0)
+    )  # .mean()
+    hourly_performance["Customer Share"] = (
+        hourly_performance["Revenue"] * customer_profit_share
+    )
+    hourly_performance["Voltus Share"] = (
+        hourly_performance["Revenue"] - hourly_performance["Customer Share"]
+    )
+    return hourly_performance
+
+
+def main():
+    df = construct_df()
+
+    for i in [1, 2, 3, 5, 6]:
+        site_data = get_site_data_as_series("files/site_" + str(i) + ".csv")
+        ten_of_ten_baseline = get_10of10_baseline(
+            data=site_data, event_date=pd.Timestamp("2022-06-14")
+        )
+        df.loc[
+            i,
+            "10 of 10 baseline",
+        ] = ten_of_ten_baseline
+        df.loc[i, "Average Performance (FSL)"] = customer_performance_from_baseline(
+            site_data.loc[
+                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
+                    "2022-06-14 18:00:00"
+                )
+            ],
+            ten_of_ten_baseline,
+        )
+        df.loc[
+            i, "Average Performance (10 of 10)"
+        ] = customer_performance_from_baseline(
+            site_data.loc[
+                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
+                    "2022-06-14 18:00:00"
+                )
+            ],
+            df.loc[i, "MISO FSL Baseline"],
+        )
+
+        payouts = calculate_payouts(
+            site_data.loc[
+                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
+                    "2022-06-14 18:00:00"
+                )
+            ],
+            ten_of_ten_baseline,
+            df["Profit Share%"].loc[i],
+        )
+        df.loc[i, "Revenue"] = payouts["Revenue"].sum()
+        df.loc[i, "Customer Share"] = payouts["Customer Share"].sum()
+        df.loc[i, "Voltus Share"] = payouts["Voltus Share"].sum()
+
+    return df
+
+
+print(main())
