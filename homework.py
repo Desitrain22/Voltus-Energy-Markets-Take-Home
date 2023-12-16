@@ -4,7 +4,7 @@ miso_baselines = {1: 10700, 2: 5400, 3: 850, 5: 9000, 6: 350}
 
 
 def get_site_data_as_series(
-    file_path: str = "site_1.csv", index_header="Interval Beginning (EST)"
+    file_path: str = "files/site_1.csv", index_header="Interval Beginning (EST)"
 ):
     series = pd.read_csv(file_path)
     series["Interval Beginning (EST)"] = series["Interval Beginning (EST)"].apply(
@@ -16,12 +16,12 @@ def get_site_data_as_series(
 def customer_performance_from_baseline(customer_series: pd.Series, baseline: float):
     return (
         customer_series.rolling(window=4)
-        .apply(sum)
-        .dropna()
-        .iloc[::4]
-        .apply(lambda x: baseline - x)
+        .apply(sum) #takes a rolling sum of the prior 4 intervals
+        .dropna() #eliminates the leading 3 NA values
+        .iloc[::4] #filters every 4th entry, isolating the 45 minute mark (This could also be done with groupby by grouping on the :45)
+        .apply(lambda x: baseline - x) #subtract the baseline from the sum of each hour
         .mean()
-        .iloc[0]
+        .iloc[0] #return floating point value
     )
 
 
@@ -48,7 +48,7 @@ def get_10of10_baseline(
 
 
 for i in [1, 2, 3, 5, 6]:
-    site_data = get_site_data_as_series("site_" + str(i) + ".csv")
+    site_data = get_site_data_as_series("files/site_" + str(i) + ".csv")
     fsl = customer_performance_from_baseline(
         site_data.loc[
             pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp("2022-06-14 18:00:00")
