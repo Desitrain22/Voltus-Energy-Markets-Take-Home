@@ -2,10 +2,10 @@ import pandas as pd
 from typing import Union
 
 hourly_rates = {
-    pd.Timestamp("2022-06-14 14:00"): 1500,
-    pd.Timestamp("2022-06-14 15:00"): 1800,
-    pd.Timestamp("2022-06-14 16:00"): 3000,
-    pd.Timestamp("2022-06-14 17:00"): 780,
+    pd.Timestamp("2022-06-14 13:00"): 1500,
+    pd.Timestamp("2022-06-14 14:00"): 1800,
+    pd.Timestamp("2022-06-14 15:00"): 3000,
+    pd.Timestamp("2022-06-14 16:00"): 780,
 }
 
 
@@ -20,7 +20,6 @@ def construct_df():
     miso_baselines = {1: 10700, 2: 5400, 3: 850, 5: 9000, 6: 350}
     customer_profit_share = {1: 0.64, 2: 0.62, 3: 0.56, 5: 0.65, 6: 0.51}
     df = pd.DataFrame([miso_baselines, customer_profit_share]).transpose()
-    df["10 of 10 baseline"] = ""
     df["Average Performance (10 of 10)"] = ""
     df["Average Performance (FSL)"] = ""
     df["Revenue"] = ""
@@ -52,8 +51,8 @@ def get_site_data(
 
 def get_10of10_baselines(
     data: pd.Series = get_site_data(),
-    event_start=pd.Timestamp("2022-06-14 14:00:00"),
-    event_end=pd.Timestamp("2022-06-14 17:00:00"),
+    event_start=pd.Timestamp("2022-06-14 13:00:00"),
+    event_end=pd.Timestamp("2022-06-14 16:00:00"),
 ) -> pd.Series:
     """Given a customer's site data, the event time range, returns the customer's baseline performance for that date using the MISO 10of10 methodology
 
@@ -61,8 +60,8 @@ def get_10of10_baselines(
 
     Args:
         data (pd.DataFrame, optional): A customer's site data as a df. Defaults to site 1 data.
-        event_start (pd.Timestamp, optional): starting timestamp of event. Defaults to pd.Timestamp("2022-06-14 14:00:00").
-        event_end (pd.Timestamp, optional): ending timestamp of event. Defaults to pd.Timestamp("2022-06-14 14:00:00").
+        event_start (pd.Timestamp, optional): starting timestamp of event. Defaults to pd.Timestamp("2022-06-14 13:00:00").
+        event_end (pd.Timestamp, optional): ending timestamp of event. Defaults to pd.Timestamp("2022-06-14 13:00:00").
 
     Returns:
         float: The calculated baseline
@@ -127,8 +126,8 @@ def main():
         site_data = get_site_data("files/site_" + str(i) + ".csv")
         df.loc[i, "Average Performance (FSL)"] = customer_performance_from_baseline(
             site_data.loc[
-                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
-                    "2022-06-14 17:00:00"
+                pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
+                    "2022-06-14 16:00:00"
                 )
             ]["kWh"],
             df.loc[i, "MISO FSL Baseline"],
@@ -138,8 +137,8 @@ def main():
             i, "Average Performance (10 of 10)"
         ] = customer_performance_from_baseline(
             site_data.loc[
-                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
-                    "2022-06-14 17:00:00"
+                pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
+                    "2022-06-14 16:00:00"
                 )
             ]["kWh"],
             get_10of10_baselines(site_data["kWh"]),
@@ -147,8 +146,8 @@ def main():
 
         payouts = calculate_payouts(
             site_data["kWh"].loc[
-                pd.Timestamp("2022-06-14 14:00:00") : pd.Timestamp(
-                    "2022-06-14 17:00:00"
+                pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
+                    "2022-06-14 16:00:00"
                 )
             ],
             get_10of10_baselines(site_data["kWh"]),
@@ -158,6 +157,3 @@ def main():
         df.loc[i, "Customer Share"] = payouts["Customer Share"]
         df.loc[i, "Voltus Share"] = payouts["Voltus Share"]
     return df
-
-
-print(main())
