@@ -98,7 +98,7 @@ def customer_performance_from_baseline(
     """
     return (
         baseline - customer_series.groupby(customer_series.index.floor("h")).sum()
-    ).mean()
+    )
 
 
 def calculate_payouts(
@@ -115,7 +115,6 @@ def calculate_payouts(
     )
     df["Customer Share"] = df["Revenue"] * customer_profit_share
     df["Voltus Share"] = df["Revenue"] - df["Customer Share"]
-    print(df)
     return df
 
 
@@ -131,7 +130,7 @@ def main():
                 )
             ]["kWh"],
             df.loc[i, "MISO FSL Baseline"],
-        )
+        ).mean()
 
         df.loc[
             i, "Average Performance (10 of 10)"
@@ -142,7 +141,7 @@ def main():
                 )
             ]["kWh"],
             get_10of10_baselines(site_data["kWh"]),
-        )
+        ).mean()
 
         payouts = calculate_payouts(
             site_data["kWh"].loc[
@@ -157,3 +156,5 @@ def main():
         df.loc[i, "Customer Share"] = payouts["Customer Share"]
         df.loc[i, "Voltus Share"] = payouts["Voltus Share"]
     return df
+
+print(main())
