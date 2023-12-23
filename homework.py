@@ -52,7 +52,7 @@ def get_site_data(
 def get_10of10_baselines(
     data: pd.Series = get_site_data(),
     event_start=pd.Timestamp("2022-06-14 13:00:00"),
-    event_end=pd.Timestamp("2022-06-14 16:00:00"),
+    event_end=pd.Timestamp("2022-06-14 16:45:00"),
 ) -> pd.Series:
     """Given a customer's site data, the event time range, returns the customer's baseline performance for that date using the MISO 10of10 methodology
 
@@ -126,7 +126,7 @@ def main():
         df.loc[i, "Average Performance (FSL)"] = customer_performance_from_baseline(
             site_data.loc[
                 pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
-                    "2022-06-14 16:00:00"
+                    "2022-06-14 16:45:00"
                 )
             ]["kWh"],
             df.loc[i, "MISO FSL Baseline"],
@@ -137,7 +137,7 @@ def main():
         ] = customer_performance_from_baseline(
             site_data.loc[
                 pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
-                    "2022-06-14 16:00:00"
+                    "2022-06-14 16:45:00"
                 )
             ]["kWh"],
             get_10of10_baselines(site_data["kWh"]),
@@ -146,7 +146,7 @@ def main():
         payouts = calculate_payouts(
             site_data["kWh"].loc[
                 pd.Timestamp("2022-06-14 13:00:00") : pd.Timestamp(
-                    "2022-06-14 16:00:00"
+                    "2022-06-14 16:45:00"
                 )
             ],
             get_10of10_baselines(site_data["kWh"]),
